@@ -1,3 +1,33 @@
 .App {
   text-align: center;
+  background-color: #272c34;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  max-width: 100%;
+  max-height: 100%;
+  
+}
+
+.Chords {
+  display: flex;
+  justify-content: center;
+  position: absolute;
+  bottom: 10rem;
+  width: 100%;
+  max-width: 500px;
+}
+
+.ChordsContainer {
+  display: flex;
+  justify-content: center;
+  
+}
+
+.Chord {
+  display: flex;
+  justify-content: center;
+}
+
+.MuiFab-label{
+  color: white !important;
 }
