@@ -2,7 +2,17 @@ import React from 'react';
 import './App.css';
 
 import { useState, useEffect } from "react";
-import { initialize } from 'workbox-google-analytics';
+
+import useSound from 'use-sound';
+import okay from './sounds/okay.mp3'
+import completeSfx from './sounds/complete.mp4'
+
+import Button from '@material-ui/core/Button';
+import Dialog from '@material-ui/core/Dialog';
+import DialogActions from '@material-ui/core/DialogActions';
+import DialogContent from '@material-ui/core/DialogContent';
+import DialogContentText from '@material-ui/core/DialogContentText';
+import DialogTitle from '@material-ui/core/DialogTitle';
 
 import CircularProgress from '@material-ui/core/CircularProgress';
 import Fab from '@material-ui/core/Fab';
@@ -15,6 +25,8 @@ import { green } from '@material-ui/core/colors';
 import { blue } from '@material-ui/core/colors';
 import { makeStyles } from '@material-ui/core/styles';
 import LinearProgress from '@material-ui/core/LinearProgress'
+// import PlayIcon from '@material-ui/icons/PlayArrowRounded'
+import MicIcon from '@material-ui/icons/Mic';
 
 
 const useStyles = makeStyles((theme) => ({
@@ -45,10 +57,17 @@ function App() {
   const classes = useStyles();
 
   const [frequency, setFrequency] = useState(0);
-  const [myNote, setMyNote] = useState(0);
+  const [myNote, setMyNote] = useState([]);
   const [audioContext, setAudioContext] = useState(0);
   const [analyser, setAnalyser] = useState(0);
   const [microphone, setMicrophone] = useState(0);
+  const [startOpen, setStartOpen] = React.useState(true);
+  const [endOpen, setEndOpen] = React.useState(false);
+
+  const [noteFeedback, setNoteFeedback] = useState("");
+
+  const [playOkaySfx] = useSound(okay);
+  const [playCompleteSfx] = useSound(completeSfx);
 
   const [e2Tuned, setE2Tuned] = useState(false);
   const [a2Tuned, setA2Tuned] = useState(false);
@@ -64,14 +83,12 @@ function App() {
   const [matchingNoteCount, setMatchingNoteCount] = useState(0);
 
 function init(){
-  console.log("Started")
   var audioContext = new(window.AudioContext || window.webkitAudioContext)();
   var microphone;
 
   var analyser = audioContext.createAnalyser();
 
     if (navigator.mediaDevices.getUserMedia) {
-        console.log('getUserMedia supported.');
         var constraints = { audio: true }
         navigator.mediaDevices.getUserMedia(constraints)
             .then(function(stream) {
@@ -87,31 +104,32 @@ function init(){
     }
 
     function beginRecording() {
-      console.log( audioContext.sampleRate);
       analyser.fftSize = 32768; // power of 2, between 32 and max unsigned integer
       var bufferLength = analyser.fftSize;
       var float32 = new Float32Array(analyser.fftSize);
 
 
       var freqBinDataArray = new Uint8Array(bufferLength);
-
-      var checkAudio = function() {
-          analyser.getByteFrequencyData(freqBinDataArray);
-          analyser.getFloatFrequencyData(float32);
-          var index = getIndexOfMax(freqBinDataArray)
-
-          var frequency =  ((index)*((audioContext.sampleRate/2)/ analyser.fftSize))
-          setFrequency(frequency);
-          console.log(frequency)
-          setMyNote(calculateNote(frequency))
-      }
-
-      setInterval(checkAudio, 64);
+      checkAudio(analyser, audioContext, freqBinDataArray)
+      setTimeout(beginRecording, 100);
   }
+
 
 
 }
 
+function checkAudio(analyser, audioContext, freqBinDataArray)
+{
+  analyser.getByteFrequencyData(freqBinDataArray);
+  var index = getIndexOfMax(freqBinDataArray)
+
+  var detectedFrequency = ((index)*((audioContext.sampleRate/2)/ analyser.fftSize));
+  setFrequency(detectedFrequency)
+  var detectedNote = calculateNote(detectedFrequency);
+  setMyNote(detectedNote);
+  setTest(prevTest=>prevTest+1);
+
+}
 function getIndexOfMax(array) {
   return array.reduce((iMax, x, i, arr) => x > arr[iMax] ? i : iMax, 0);
 }
@@ -123,32 +141,58 @@ function calculateNote(frequency){
   return noteStrings[note%12]
 }
 
+function getNoteFeedback(wrongNote){
+  console.log("in my note: "+wrongNote)
+  var tooHigh = "Too High!";
+  var tooLow = "Too Low!";
+  if (targetNote.substring(0, 1) === "E"){
+    if ((wrongNote === "A") || (wrongNote === "D")){
+      setNoteFeedback(tooLow);
+      }else{
+        setNoteFeedback(tooHigh);
+      }
+  } else if (targetNote.substring(0, 1) === "A"){
+      if ((wrongNote === "E") || (wrongNote === "B")){
+        setNoteFeedback(tooLow);
+      }else{
+        setNoteFeedback(tooHigh);
+      }
+
+  } else if (targetNote.substring(0, 1) === "D"){
+    if ((wrongNote === "E") || (wrongNote === "A")){
+      setNoteFeedback(tooLow);
+      }else{
+        setNoteFeedback(tooHigh);
+      }
+    
+  } else if (targetNote.substring(0, 1) === "G"){
+    if ((wrongNote === "A") || (wrongNote === "D")){
+      setNoteFeedback(tooLow);
+      }else{
+        setNoteFeedback(tooHigh);
+      }
+    
+  } else if (targetNote.substring(0, 1) === "B"){
+    if ((wrongNote === "D") || (wrongNote === "G")){
+      setNoteFeedback(tooLow);
+      }else{
+        setNoteFeedback(tooHigh);
+      }
+  }
+}
+useEffect( ()=>{
+},[])
+
 useEffect( ()=>{
     if(test >0){
 
-      analyser.fftSize = 32768;
-      var bufferLength = analyser.fftSize;
-      var freqBinDataArray = new Uint8Array(bufferLength);
-      analyser.getByteFrequencyData(freqBinDataArray);
-      var index = getIndexOfMax(freqBinDataArray)
-      var detectedFrequency = ((index)*((audioContext.sampleRate/2)/ analyser.fftSize));
-      setFrequency(detectedFrequency)
-      var detectedNote = calculateNote(detectedFrequency);
-      // setMyNote(prevNote=>{
-      //   // console.log("targetNote: "+targetNote)
-      //   if (prevNote === detectedNote && detectedNote == targetNote){
-      //     setMatchingNoteCount(prevCount=>prevCount+1)
-      //   }else{
-      //     setMatchingNoteCount(0);
-      //   }
-      //   return detectedNote;
-      // })
-      console.log("myNote: "+myNote)
-      setMyNote(detectedNote);
-      if (detectedNote === myNote && detectedNote === targetNote.substring(0, 1)){
+      if (myNote === targetNote.substring(0, 1)){
         setMatchingNoteCount(prevCount=>prevCount+1)
+        setNoteFeedback("Perfect!")
       }else{
         setMatchingNoteCount(prevCount=>{
+          // console.log("myNote: "+myNote)
+          getNoteFeedback(myNote)
           if (prevCount>1){
             return prevCount - 1
           }
@@ -156,9 +200,6 @@ useEffect( ()=>{
         })
       }
     
-      setTimeout(() => {
-        setTest(prevTest=>prevTest+1)
-      }, 100)
     }
     
   },[test])
@@ -167,18 +208,12 @@ useEffect( ()=>{
     
     if(microphone != 0){
       microphone.connect(analyser);
-      // beginRecording();
     }
   },[microphone])
-
-  // useEffect( ()=>{
-  //   setMyNote(calculateNote(frequency))
-  // },[frequency])
 
   useEffect( ()=>{
     if(analyser!==0){
       if (navigator.mediaDevices.getUserMedia){
-        console.log("Success");
         var constraints = { audio: true };
     
         navigator.mediaDevices.getUserMedia(constraints)
@@ -199,11 +234,11 @@ useEffect( ()=>{
   },[audioContext])
 
   useEffect( ()=>{
-    console.log("matchingNoteCount: "+matchingNoteCount)  
     if(matchingNoteCount >= 25){
       if (targetNote == "E2"){
         setE2Tuned(true);
         setTargetNote("A2");
+        
 
       } else if (targetNote === "A2"){
         setA2Tuned(true);
@@ -220,13 +255,88 @@ useEffect( ()=>{
       } else if (targetNote === "E4"){
         setE4Tuned(true);
       }
-
+      playOkaySfx();
       setMatchingNoteCount(0);
     }  
   },[matchingNoteCount])
 
+  useEffect( ()=>{
+    if (e4Tuned === true){
+      playCompleteSfx();
+      setEndOpen(true);
+    }
+    
+  },[e4Tuned])
+
+  const handleClose = () => {
+    init();
+
+    setStartOpen(false);
+  };
+
+  const handleCloseEnd = () => {
+    setE2Tuned(false);
+    setB3Tuned(false);
+    setG3Tuned(false);
+    setD3Tuned(false);
+    setA2Tuned(false);
+    setE4Tuned(false);
+
+    setTargetNote("E2")
+
+    setEndOpen(false);
+  };
+
 return (
   <div className="App" style={{height: "100vh"}}>
+
+      <Dialog
+        open={startOpen}
+        onClose={handleClose}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+      >
+        <DialogTitle id="alert-dialog-title">{"Welcome to Guitar Tuner!"}</DialogTitle>
+        <DialogContent>
+          <DialogContentText id="alert-dialog-description">
+            <p>
+               Guitar Tuner lets you tune your guitar with automatic frequency detection.
+            </p>
+
+            <p>
+               Play the open string of your guitar and adjust the tension on the string as indicated. Once the correct note is held for a few seconds Guitar Tuner will automaticaly start tuning the next string.
+            </p>
+            
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="contained" color="primary" onClick={handleClose} >
+            Lets get started
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={endOpen}
+        onClose={handleCloseEnd}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+      >
+        <DialogTitle id="alert-dialog-title">{"Your Guitar Has Been Tuned!"}</DialogTitle>
+        <DialogContent>
+          <DialogContentText id="alert-dialog-description">
+            <p>
+               Play your favorite songs knowing your guitar is perfectly tuned.
+            </p>
+            
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="contained" color="primary" onClick={handleCloseEnd} >
+            Tune Again
+          </Button>
+        </DialogActions>
+      </Dialog>
 
 <div className="ChordsContainer">
     <div className="Chords">
@@ -400,14 +510,29 @@ return (
 </div>
     </div>
 
-    <h1>{myNote}</h1>
-    <h1>{frequency} Hz</h1>
-    <button onClick={init}>Start</button>
 
-    <LinearProgress variant="determinate" value={matchingNoteCount*4} />
+    <div className="VerticalContainer">
+      <div className="VertialCenter">
 
-    <h1>1.0</h1>
+      </div>
+
+    </div>
+
+    <LinearProgress variant="determinate" value={matchingNoteCount*4} style={{marginTop: "7rem"}} />
+
+    <Grid container spacing={1} style={{marginTop: "8rem"}}>
+      <Grid className="MicContainer" item xs={6}>
+        <MicIcon className="VertialCenterLeft MicIcon" style={{ fontSize: 60 }}/>
+      </Grid>
+      <Grid className="MicContainer" item xs={6}>
+      <h1 className="VertialCenterRight" style={{ fontSize: 80 }}>{myNote}</h1>
+      </Grid>
+    </Grid>
+
     
+    <br/>
+    <h1  style={{margin:"1rem"}}>{Math.trunc(frequency)} Hz</h1>
+    <h1>{noteFeedback}</h1>
     
 
     
